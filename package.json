@@ -1,0 +1,51 @@
+{
+  "name": "weather-api",
+  "version": "1.0.0",
+  "description": "Weather redirection API",
+  "homepage": "https://github.com/Podexus23/weather-api#readme",
+  "bugs": {
+    "url": "https://github.com/Podexus23/weather-api/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Podexus23/weather-api.git"
+  },
+  "license": "ISC",
+  "author": "Podexus23",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon src/index.ts",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\"",
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "lint-staged": {
+    "*.{ts,js,json}": [
+      "prettier --write",
+      "eslint --fix"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "jiti": "^2.6.1",
+    "lint-staged": "^16.4.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.1.0"
+  }
+}
