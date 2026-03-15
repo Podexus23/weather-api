@@ -12,7 +12,7 @@
   },
   "license": "ISC",
   "author": "Podexus23",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "prepare": "husky",
