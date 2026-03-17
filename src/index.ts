@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
+
 import 'dotenv/config';
 
-const URL = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/london?unitGroup=metric&key=${process.env.WEATHER_API_KEY}&contentType=json`;
+async function getWeather(url: string) {
+  const res = await fetch(url);
 
-async function getWeather() {
-  const res = await fetch(URL);
   if (res.ok) {
     const json = await res.json();
     return json;
@@ -12,12 +12,28 @@ async function getWeather() {
   return 'empty';
 }
 
+// async function getWeatherFake(city?: string) {
+//   return new Promise((res, rej) => {
+//     if (city) res(city);
+//     else rej('sorry there is no city');
+//   });
+// }
+
+const buildWeatherUrl = (url: string, base: string) => {
+  const parsedUrl = new URL(url, base);
+  const city = parsedUrl.searchParams.get('city');
+  if (!city) throw Error('please add city query parameter');
+
+  return `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${city}?unitGroup=metric&key=${process.env.WEATHER_API_KEY}&contentType=json`;
+};
+
 const server = createServer((req, res) => {
   void (async () => {
     console.log(req.url);
     try {
-      if (req.url === '/api/weather' && process.env.WEATHER_API_KEY) {
-        const data = await getWeather();
+      if (req.url?.startsWith('/api/weather') && process.env.WEATHER_API_KEY) {
+        const city = buildWeatherUrl(req.url, `http://${req.headers.host}`);
+        const data = await getWeather(city);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify({
