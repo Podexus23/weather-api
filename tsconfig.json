@@ -41,6 +41,10 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
+  "ts-node": {
+    "logError": true,
+    "pretty": true /* <= technically not required */
+  },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
