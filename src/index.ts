@@ -1,23 +1,6 @@
 import { createServer } from 'node:http';
-
 import 'dotenv/config';
-
-async function getWeather(url: string) {
-  const res = await fetch(url);
-
-  if (res.ok) {
-    const json = await res.json();
-    return json;
-  }
-  return 'empty';
-}
-
-// async function getWeatherFake(city?: string) {
-//   return new Promise((res, rej) => {
-//     if (city) res(city);
-//     else rej('sorry there is no city');
-//   });
-// }
+import axios from 'axios';
 
 const buildWeatherUrl = (url: string, base: string) => {
   const parsedUrl = new URL(url, base);
@@ -32,8 +15,8 @@ const server = createServer((req, res) => {
     console.log(req.url);
     try {
       if (req.url?.startsWith('/api/weather') && process.env.WEATHER_API_KEY) {
-        const city = buildWeatherUrl(req.url, `http://${req.headers.host}`);
-        const data = await getWeather(city);
+        const cityUrl = buildWeatherUrl(req.url, `http://${req.headers.host}`);
+        const { data } = await axios<Record<string, unknown>>(cityUrl);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify({
