@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { redisClient } from './redisClient.js';
+import { redisClient } from '../infra/redis.js';
 
 interface RateLimitOptions {
   windowMs: number;
@@ -41,3 +41,9 @@ export const createRateLimiter = (options: RateLimitOptions) => {
     }
   };
 };
+
+export const weatherLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: 'Weather API rate limit exceeded (10 requests per minute)',
+});

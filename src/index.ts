@@ -1,52 +1,16 @@
 import { createServer } from 'node:http';
 import 'dotenv/config';
-import axios from 'axios';
-import { connectRedis, redisClient } from './utils/redisClient.js';
-import { createRateLimiter } from './utils/rateLimiter.js';
+import { connectRedis } from './infra/redis.js';
 import { compileFile } from 'pug';
-import { dirname, extname, join } from 'node:path';
+import { dirname, extname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
+import { getCityFromRequest, getOptionsFromRequest } from './routes/weather.js';
+import { weatherLimiter } from './middleware/rateLimiter.js';
+import { getWeather } from './services/weatherService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const weatherTemplate = compileFile(join(__dirname, '../view/weather.pug'));
-
-const weatherLimiter = createRateLimiter({
-  windowMs: 60 * 1000,
-  max: 10,
-  message: 'Weather API rate limit exceeded (10 requests per minute)',
-});
-
-const getCityFromRequest = (url: string, base: string) => {
-  const parsedUrl = new URL(url, base);
-  const city = parsedUrl.searchParams.get('city');
-  if (!city) throw Error('please add city query parameter');
-
-  return city;
-};
-const getOptionsFromRequest = (url: string, base: string) => {
-  const parsedUrl = new URL(url, base);
-  const options = parsedUrl.searchParams.get('options');
-  if (!options) return false;
-
-  return options;
-};
-
-const getWeather = async (city: string): Promise<Record<string, unknown>> => {
-  const cachedData = await redisClient.get(`weather:${city}`);
-
-  if (cachedData) {
-    console.log(`${city} retrieved from cache`);
-    //TODO create proper weather interface and remove assertion
-    const parsed = JSON.parse(cachedData) as Record<string, unknown>;
-    return parsed;
-  }
-
-  const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${city}?unitGroup=metric&key=${process.env.WEATHER_API_KEY}&contentType=json`;
-  const freshData = await axios<Record<string, unknown>>(url);
-  await redisClient.setEx(`weather:${city}`, 3600, JSON.stringify(freshData.data));
-  return freshData.data;
-};
 
 const server = createServer((req, res) => {
   void (async () => {
@@ -55,12 +19,19 @@ const server = createServer((req, res) => {
 
     try {
       const url = new URL(req.url!, `http://${req.headers.host}`);
+      const publicRoot = join(__dirname, '../public');
 
       if (url.pathname.startsWith('/public/')) {
-        const filePath = join(__dirname, '../public', url.pathname.replace('/public/', ''));
+        const relativePath = url.pathname.replace('/public/', '');
+        const candidate = join(publicRoot, relativePath);
+
+        if (!candidate.startsWith(publicRoot + sep)) {
+          throw Error('Forbidden');
+        }
+
         try {
-          const content = await readFile(filePath);
-          const ext = extname(filePath);
+          const content = await readFile(candidate);
+          const ext = extname(candidate);
           const contentType = ext === '.css' ? 'text/css' : 'application/octet-stream';
           res.writeHead(200, { 'Content-Type': contentType });
           res.end(content);
