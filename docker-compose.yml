@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  redis:
+    image: redis:7
+    container_name: weather-app-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+volumes:
+  redis-data:
