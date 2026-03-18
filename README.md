@@ -6,10 +6,7 @@ resend data trough our api+
 put town as a var+
 add axios+
 cache requests to redis (daily)+
-
-chose current, daily, weekly
-sort/filter showed data
-
-add rate-limiter
+add rate-limiter+
+chose current+
 
 add pug to show results

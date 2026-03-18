@@ -17,6 +17,13 @@ const getCityFromRequest = (url: string, base: string) => {
 
   return city;
 };
+const getOptionsFromRequest = (url: string, base: string) => {
+  const parsedUrl = new URL(url, base);
+  const options = parsedUrl.searchParams.get('options');
+  if (!options) return false;
+
+  return options;
+};
 
 const getWeather = async (city: string): Promise<Record<string, unknown>> => {
   const cachedData = await redisClient.get(`weather:${city}`);
@@ -45,8 +52,11 @@ const server = createServer((req, res) => {
         if (!allowed) return;
 
         const city = getCityFromRequest(req.url, `http://${req.headers.host}`);
-        const data = await getWeather(city);
-
+        let data = await getWeather(city);
+        const options = getOptionsFromRequest(req.url, `http://${req.headers.host}`);
+        if (options && options === 'current' && data.currentConditions) {
+          data = data.currentConditions as Record<string, unknown>;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify({
