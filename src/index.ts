@@ -2,6 +2,13 @@ import { createServer } from 'node:http';
 import 'dotenv/config';
 import axios from 'axios';
 import { connectRedis, redisClient } from './utils/redisClient.js';
+import { createRateLimiter } from './utils/rateLimiter.js';
+
+const weatherLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: 'Weather API rate limit exceeded (10 requests per minute)',
+});
 
 const getCityFromRequest = (url: string, base: string) => {
   const parsedUrl = new URL(url, base);
@@ -23,18 +30,23 @@ const getWeather = async (city: string): Promise<Record<string, unknown>> => {
 
   const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${city}?unitGroup=metric&key=${process.env.WEATHER_API_KEY}&contentType=json`;
   const freshData = await axios<Record<string, unknown>>(url);
-  console.log(freshData);
   await redisClient.setEx(`weather:${city}`, 3600, JSON.stringify(freshData.data));
   return freshData.data;
 };
 
 const server = createServer((req, res) => {
   void (async () => {
+    let allowed: boolean;
     console.log(req.url);
+
     try {
       if (req.url?.startsWith('/api/weather') && process.env.WEATHER_API_KEY) {
+        allowed = await weatherLimiter(req, res);
+        if (!allowed) return;
+
         const city = getCityFromRequest(req.url, `http://${req.headers.host}`);
         const data = await getWeather(city);
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify({
