@@ -3,6 +3,13 @@ import 'dotenv/config';
 import axios from 'axios';
 import { connectRedis, redisClient } from './utils/redisClient.js';
 import { createRateLimiter } from './utils/rateLimiter.js';
+import { compileFile } from 'pug';
+import { dirname, extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const weatherTemplate = compileFile(join(__dirname, '../view/weather.pug'));
 
 const weatherLimiter = createRateLimiter({
   windowMs: 60 * 1000,
@@ -47,22 +54,42 @@ const server = createServer((req, res) => {
     console.log(req.url);
 
     try {
+      const url = new URL(req.url!, `http://${req.headers.host}`);
+
+      if (url.pathname.startsWith('/public/')) {
+        const filePath = join(__dirname, '../public', url.pathname.replace('/public/', ''));
+        try {
+          const content = await readFile(filePath);
+          const ext = extname(filePath);
+          const contentType = ext === '.css' ? 'text/css' : 'application/octet-stream';
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(content);
+        } catch {
+          res.writeHead(404);
+          res.end('File not found');
+        }
+        return;
+      }
+
       if (req.url?.startsWith('/api/weather') && process.env.WEATHER_API_KEY) {
         allowed = await weatherLimiter(req, res);
         if (!allowed) return;
 
         const city = getCityFromRequest(req.url, `http://${req.headers.host}`);
-        let data = await getWeather(city);
+        const weatherData = await getWeather(city);
         const options = getOptionsFromRequest(req.url, `http://${req.headers.host}`);
-        if (options && options === 'current' && data.currentConditions) {
-          data = data.currentConditions as Record<string, unknown>;
+        if (options && options === 'html') {
+          const html = weatherTemplate({ city, weather: weatherData });
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(html);
+        } else {
+          res.writeHead(200, { 'Content-Type': 'Application/json' });
+          res.end(
+            JSON.stringify({
+              data: weatherData,
+            })
+          );
         }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            data,
-          })
-        );
       } else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(

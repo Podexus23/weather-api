@@ -1,0 +1,18 @@
+extends layout
+
+block content
+  h1 Weather in #{city}
+  if weather
+    .current
+      h2 Current Conditions
+      p Temperature: #{weather.currentConditions.temp}°C
+      p Conditions: #{weather.currentConditions.conditions}
+    .forecast
+      h2 5-Day Forecast
+      ul
+        each day in weather.days.slice(0, 5)
+          li
+            strong #{day.datetime}:
+            |  Temp: #{day.temp}°C, #{day.conditions}
+  else
+    p Weather data not available.
