@@ -1,14 +1,22 @@
+import { BadRequestError } from '../middleware/errors.js';
+
 export const getCityFromRequest = (url: string, base: string) => {
   const parsedUrl = new URL(url, base);
   const rawCity = parsedUrl.searchParams.get('city');
-  if (!rawCity) throw Error('please add city query parameter');
+  if (!rawCity) {
+    throw new BadRequestError('City name is required');
+  }
 
   const city = rawCity
     .replace(/[^a-zA-Z\s-]/g, '')
     .trim()
     .toLowerCase();
-  if (city.length === 0) throw Error('Invalid city name');
-  if (city.length > 50) throw Error('City name too long');
+  if (city.length === 0) {
+    throw new BadRequestError('City name contains invalid characters');
+  }
+  if (city.length > 50) {
+    throw new BadRequestError('City name too long');
+  }
 
   return city;
 };

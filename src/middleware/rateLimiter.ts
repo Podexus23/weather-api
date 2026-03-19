@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { redisClient } from '../infra/redis.js';
+import { AppError } from './errors.js';
 
 interface RateLimitOptions {
   windowMs: number;
@@ -28,10 +29,7 @@ export const createRateLimiter = (options: RateLimitOptions) => {
       res.setHeader('X-RateLimit-Remaining', Math.max(0, max - current));
 
       if (current > max) {
-        res.setHeader('X-RateLimit-Reset', Math.ceil((Date.now() + windowMs) / 1000));
-        res.writeHead(429, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: message }));
-        return false;
+        throw new AppError(message, 429);
       }
 
       return true;
