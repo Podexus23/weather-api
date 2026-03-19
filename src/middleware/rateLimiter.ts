@@ -19,7 +19,7 @@ export const createRateLimiter = (options: RateLimitOptions) => {
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     const ip = req.socket.remoteAddress;
-    const key = `${keyPrefix}:${ip}:${req.url}`;
+    const key = `${keyPrefix}:${ip}`;
 
     try {
       const current = await redisClient.incr(key);

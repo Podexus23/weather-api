@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { compileFile } from 'pug';
 import { dirname, extname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFile } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { getCityFromRequest, getOptionsFromRequest } from './routes/weather.js';
 import { weatherLimiter } from './middleware/rateLimiter.js';
 import { getWeather } from './services/weatherService.js';
@@ -11,6 +11,9 @@ import { sendHtml, sendJson } from './helpers/sendResponse.js';
 import { AppError, BadRequestError, NotFoundError } from './middleware/errors.js';
 import { handleError } from './helpers/handleError.js';
 import type { WeatherApiResponse } from './types/weather.js';
+import { mimeTypes } from './types/mime.js';
+import { createReadStream } from 'node:fs';
+import { isSystemError } from './types/systemError.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const weatherTemplate = compileFile(join(__dirname, '../view/weather.pug'));
@@ -29,17 +32,34 @@ export const server = createServer((req, res) => {
         const candidate = join(publicRoot, relativePath);
 
         if (!candidate.startsWith(publicRoot + sep)) {
-          throw new AppError('Forbidden', 401);
+          throw new BadRequestError('Forbidden');
         }
 
         try {
-          const content = await readFile(candidate);
-          const ext = extname(candidate);
-          const contentType = ext === '.css' ? 'text/css' : 'application/octet-stream';
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(content);
-        } catch {
-          throw new BadRequestError('File not found');
+          const fileStat = await stat(candidate);
+          const ext = extname(candidate).toLocaleLowerCase();
+          const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+          //cache headers
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Content-Length', fileStat.size);
+          res.setHeader('Cache-Control', 'public, max-age=86400'); // for 1 day
+
+          const stream = createReadStream(candidate);
+
+          stream.pipe(res);
+          stream.on('error', (err) => {
+            console.error('Stream error:', err);
+            if (!res.headersSent) {
+              res.writeHead(500);
+              res.end('Internal Server Error');
+            }
+          });
+        } catch (err) {
+          if (isSystemError(err) && err.code === 'ENOENT') {
+            throw new BadRequestError('File not found');
+          }
+          throw new AppError('Internal Server Error', 500);
         }
         return;
       }

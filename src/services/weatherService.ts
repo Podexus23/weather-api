@@ -18,7 +18,7 @@ export const getWeather = async (city: string): Promise<WeatherApiResponse> => {
     }
 
     const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(city)}?unitGroup=metric&key=${process.env.WEATHER_API_KEY}&contentType=json`;
-    const { data: rawData } = await axios<Record<string, unknown>>(url);
+    const { data: rawData } = await axios.get<Record<string, unknown>>(url, { timeout: 5000 });
     if (isWeatherData(rawData)) {
       await redisClient.setEx(`weather:${city}`, 3600, JSON.stringify(rawData));
       return rawData;
