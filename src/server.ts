@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import 'dotenv/config';
+
 import { compileFile } from 'pug';
 import { dirname, extname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';

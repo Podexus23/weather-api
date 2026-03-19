@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import { connectRedis } from './infra/redis.js';
 import { server } from './server.js';
-
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
   void (async () => {
