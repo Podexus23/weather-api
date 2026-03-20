@@ -20,19 +20,23 @@ const weatherTemplate = compileFile(join(__dirname, '../view/weather.pug'));
 
 export const server = createServer((req, res) => {
   void (async () => {
-    let allowed: boolean;
-    console.log(req.url);
-
     try {
-      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const host = req.headers.host ?? 'localhost';
+      const rawUrl = req.url ?? '/';
+      const url = new URL(rawUrl, `http://${host}`);
+      const pathname = url.pathname;
       const publicRoot = join(__dirname, '../public');
 
-      if (url.pathname.startsWith('/public/')) {
-        const relativePath = url.pathname.replace('/public/', '');
+      if (pathname.startsWith('/public/')) {
+        const relativePath = pathname.replace('/public/', '');
         const candidate = join(publicRoot, relativePath);
 
         if (!candidate.startsWith(publicRoot + sep)) {
           throw new BadRequestError('Forbidden');
+        }
+
+        if (req.method !== 'GET') {
+          throw new NotFoundError('Not found');
         }
 
         try {
@@ -57,20 +61,24 @@ export const server = createServer((req, res) => {
           });
         } catch (err) {
           if (isSystemError(err) && err.code === 'ENOENT') {
-            throw new BadRequestError('File not found');
+            throw new NotFoundError('File not found');
           }
           throw new AppError('Internal Server Error', 500);
         }
         return;
       }
 
-      if (req.url?.startsWith('/api/weather') && process.env.WEATHER_API_KEY) {
-        allowed = await weatherLimiter(req, res);
+      if (req.method === 'GET' && pathname === '/api/weather') {
+        if (!process.env.WEATHER_API_KEY) {
+          throw new AppError('Server misconfiguration: WEATHER_API_KEY is not set', 500, false);
+        }
+
+        const allowed = await weatherLimiter(req, res);
         if (!allowed) return;
 
-        const city = getCityFromRequest(req.url, `http://${req.headers.host}`);
+        const city = getCityFromRequest(rawUrl, `http://${host}`);
         const weatherData = await getWeather(city);
-        const options = getOptionsFromRequest(req.url, `http://${req.headers.host}`);
+        const options = getOptionsFromRequest(rawUrl, `http://${host}`);
 
         if (options && options === 'html') {
           const html = weatherTemplate({ city, weather: weatherData });
@@ -78,9 +86,10 @@ export const server = createServer((req, res) => {
         } else {
           sendJson<WeatherApiResponse>(res, 200, { data: weatherData });
         }
-      } else {
-        throw new NotFoundError('Not found');
+        return;
       }
+
+      throw new NotFoundError('Not found');
     } catch (error) {
       handleError(error, res);
     }

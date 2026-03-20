@@ -7,13 +7,22 @@ export const getCityFromRequest = (url: string, base: string) => {
     throw new BadRequestError('City name is required');
   }
 
-  const city = rawCity
-    .replace(/[^a-zA-Z\s-]/g, '')
-    .trim()
-    .toLowerCase();
-  if (city.length === 0) {
+  const trimmed = rawCity.trim();
+  if (trimmed.length === 0) {
     throw new BadRequestError('City name contains invalid characters');
   }
+
+  // Строгое правило: цифры в названии города — это однозначная ошибка.
+  if (/\d/.test(trimmed)) {
+    throw new BadRequestError('City name contains invalid characters');
+  }
+
+  // Разрешаем только буквы, пробелы и дефис.
+  if (!/^[a-zA-Z\s-]+$/.test(trimmed)) {
+    throw new BadRequestError('City name contains invalid characters');
+  }
+
+  const city = trimmed.toLowerCase();
   if (city.length > 50) {
     throw new BadRequestError('City name too long');
   }

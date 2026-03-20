@@ -18,7 +18,7 @@ export const createRateLimiter = (options: RateLimitOptions) => {
   } = options;
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
-    const ip = req.socket.remoteAddress;
+    const ip = req.socket.remoteAddress ?? 'unknown';
     const key = `${keyPrefix}:${ip}`;
 
     try {
@@ -34,6 +34,8 @@ export const createRateLimiter = (options: RateLimitOptions) => {
 
       return true;
     } catch (error) {
+      // IMPORTANT: do not swallow "operational" errors produced by our own code (e.g. 429).
+      if (error instanceof AppError) throw error;
       console.error('Rate limiter error:', error);
       return true;
     }
